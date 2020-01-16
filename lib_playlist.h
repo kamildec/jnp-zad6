@@ -18,8 +18,6 @@ public:
     }
 };
 
-
-
 class File {
 private:
     std::string description;
@@ -28,7 +26,11 @@ public:
     explicit File(const char *file) {}
 };
 
-class Song : public File {
+class Playable {
+    virtual void play() {}
+};
+
+class Song : public File, public Playable {
 private:
     std::string artist;
     std::string title;
@@ -37,7 +39,7 @@ public:
     void play() {}
 };
 
-class Movie : public File {
+class Movie : public File, public Playable {
 private:
     std::string title;
     std::string year;
@@ -63,13 +65,13 @@ Mode *createOddEvenMode() {
 }
 
 
-class PlayList {
+class Playlist : public Playable {
 public:
-    void add(File *file) {}
+    void add(Playable *playable) {}
 
-    void add(PlayList *playList) {}
+    //void add(Playlist *playList) {}
 
-    void add(File *file, position_t position) {}
+    void add(Playable *file, position_t position) {}
 
     void remove() {}
 
@@ -83,11 +85,11 @@ public:
 
 class Player {
 public:
-    File *openFile(File file) {
+    Playable *openFile(File file) {
         return nullptr;
     }
 
-    PlayList *createPlaylist(const char *name) {
+    Playlist *createPlaylist(const char *name) {
         return nullptr;
     }
 };
