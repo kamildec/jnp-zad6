@@ -6,19 +6,13 @@
 #include <utility>
 #include <deque>
 #include <algorithm>
+#include <regex>
 
 using position_t = uint32_t;
 #define SEPARATOR '|'
 #define SEPARATOR2 ':'
 
 class PlayerException : public std::exception {};
-
-class CorruptedMetadata : public PlayerException {
-public:
-    [[nodiscard]] const char *what() const noexcept override {
-        return "Corrupted metadata in file!";
-    }
-};
 
 class PlayableException : public PlayerException {
 public:
@@ -27,10 +21,30 @@ public:
     }
 };
 
-class NotEnoughMetadataException : public PlayerException {
+class CorruptMetadataException : public PlayerException {
 public:
     [[nodiscard]] const char *what() const noexcept override {
-        return "Playable object can not be created, not enough metadata!";
+        return "corrupt metadata";
+    }
+};
+
+class CorruptContentException : public PlayerException {
+public:
+    [[nodiscard]] const char *what() const noexcept override {
+        return "corrupt content";
+    }
+};
+
+class CorruptFileException : public PlayerException {
+public:
+    [[nodiscard]] const char *what() const noexcept override {
+        return "corrupt file";
+    }
+};
+
+class UnsupportedTypeException : public PlayerException {
+    [[nodiscard]] const char *what() const noexcept override {
+        return "unsupported type";
     }
 };
 
@@ -45,6 +59,8 @@ public:
         std::string str(file);
         std::string toMap;
         size_t pos = str.find(SEPARATOR);
+        if (pos == std::string::npos)
+            throw CorruptFileException();
         toMap = str.substr(0, pos);
         metadata.insert({"type", toMap});
         str = str.substr(pos + 1, std::string::npos);
@@ -56,7 +72,7 @@ public:
             str = str.substr(pos + 1, std::string::npos);
             pos = toMap.find(SEPARATOR2);
             if (pos == std::string::npos)
-                throw CorruptedMetadata();
+                throw CorruptMetadataException();
 
             key = toMap.substr(0, pos);
             value = toMap.substr(pos + 1, std::string::npos);
@@ -64,6 +80,11 @@ public:
 
             pos = str.find(SEPARATOR);
         }
+
+        static const std::regex content("(\\d|\\s|[A-Za-z]|\\.|\\,|!|\\?|'|:|;|-)+");
+
+        if (!regex_match(str, content))
+            throw CorruptContentException();
 
         metadata.insert({"content", str});
     }
@@ -271,7 +292,6 @@ public:
 
     void play() override {
         Printer::printPlaylist("Playlist", name);
-        std::cout << "Playlist [" << name << "]" << std::endl;
         mode->play(playlist);
     };
 };
@@ -291,7 +311,7 @@ public:
             return movie;
         }
         else {
-            throw PlayerException();
+            throw UnsupportedTypeException();
         }
     }
 
