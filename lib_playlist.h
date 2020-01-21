@@ -1,26 +1,17 @@
 #ifndef LIB_PLAYLIST_H
 #define LIB_PLAYLIST_H
 
-#include <bits/stdc++.h>
+#include <random>
 #include <unordered_map>
 #include <utility>
+#include <deque>
+#include <algorithm>
 
 using position_t = uint32_t;
 #define SEPARATOR '|'
 #define SEPARATOR2 ':'
 
-class PlayerException : public std::exception {
-private:
-    //std::string m_error;
-public:
-    /*explicit PlayerException(const char *error) : m_error(error) {}
-
-    explicit PlayerException(const std::string &error) : m_error(error) {}
-
-    [[nodiscard]] const char *what() const noexcept override {
-        return m_error.c_str();
-    }*/
-};
+class PlayerException : public std::exception {};
 
 class CorruptedMetadata : public PlayerException {
 public:
@@ -33,6 +24,13 @@ class PlayableException : public PlayerException {
 public:
     [[nodiscard]] const char *what() const noexcept override {
         return "Object is not an instance of Playable class!";
+    }
+};
+
+class NotEnoughMetadataException : public PlayerException {
+public:
+    [[nodiscard]] const char *what() const noexcept override {
+        return "Playable object can not be created, not enough metadata!";
     }
 };
 
@@ -85,29 +83,69 @@ public:
     }
 };
 
-class Playable {
+class Printer {
+    const static int code = 13;
+
+    static std::string uncodingROT13 (std::string str) {
+        std::string res;
+        for (char & i : str) {
+            if ((i >= 'a' && i <= 'm') || (i >= 'A' && i <='M'))
+                res.append(1,i += code);
+            else if ((i >= 'n' && i <= 'z') || (i >= 'N' && i <= 'Z'))
+                res.append(1, i -= code);
+            else if (isspace(i) || i == ',' || i == '.' || i == '!' || i == '?' || i == ':' ||
+                        i == ';' || i == '-')
+
+                res.append(1, i);
+        }
+
+        return res;
+    }
+
 public:
-    virtual void play() {}
-};
+    static void printMovie(std::string type, std::string metadata,
+            std::string &content) {
 
-class Song : public File, virtual public Playable {
-private:
-    std::string artist;
-    std::string title;
+        std::cout << type << metadata << uncodingROT13(content) << "\n";
+    }
 
-public:
-    Song(const char *file) : File(file) {}
+    static void printSong(std::string type, std::string metadata) {
+        std::cout << type << metadata << "\n";
+    }
 
-    void play() override {
-        std::cout << "Song" << " [" << getValue("artist") << ", " <<
-            getValue("title") << "]: " << getValue("content") << std::endl;
+    static void printPlaylist(std::string type, std::string name) {
+        std::cout << type << " [" << name << "]\n";
     }
 };
 
-class Movie : public File, virtual public Playable {
+
+class Playable {
+public:
+    virtual void play() = 0;
+};
+
+class Song : virtual public Playable {
+private:
+    std::string artist;
+    std::string title;
+    std::string content;
+public:
+
+    explicit Song(File *file) try : artist(file->getValue("artist")), title(file->getValue("title")),
+                            content(file->getValue("content")) {}
+                            catch (std::exception &e) {throw PlayableException();}
+
+    void play() override {
+        Printer::printSong("Song", " [" + artist + ", " +
+            title + "]: " + content);
+    }
+};
+
+class Movie : virtual public Playable {
 private:
     std::string title;
     std::string year;
+    std::string content;
 
     std::string ROT13(std::string str) {
         std::string result;
@@ -123,26 +161,28 @@ private:
     }
 
 public:
-    Movie(const char *file) : File(file) {}
+    explicit Movie(File *file) try : title(file->getValue("title")), year(file->getValue("year")),
+                            content(file->getValue("content")) {}
+                            catch (std::exception &e) {throw PlayableException();}
 
     void play() override {
-        std::cout << "Movie" << " [" << getValue("title") << ", " <<
-                  getValue("year") << "]: " << ROT13(getValue("content")) << std::endl;
+        Printer::printMovie("Movie", " [" + title + ", " +
+                  year + "]: ", content);
     }
 };
 
 class Mode {
 public:
-    virtual void play(std::deque<Playable*> deque) {}
+    virtual void play(std::deque<Playable*> deque) = 0;
 };
 
 
-class ShuflleMode : public Mode {
+class ShuffleMode : public Mode {
     std::default_random_engine engine;
     unsigned long seed;
 
 public:
-    explicit ShuflleMode(unsigned long seed) : seed(seed), engine(seed) {}
+    explicit ShuffleMode(unsigned long seed) : seed(seed), engine(seed) {}
 
     void play(std::deque<Playable*> deque) override {
         std::uniform_int_distribution<position_t> distr(0, deque.size());
@@ -183,12 +223,12 @@ public:
 
 
 SequenceMode *createSequenceMode() {
-    SequenceMode *sequenceMode = new SequenceMode;
+    SequenceMode *sequenceMode = new SequenceMode();
     return sequenceMode;
 }
 
-ShuflleMode *createShuffleMode(unsigned long seed) {
-    ShuflleMode *shuflleMode = new ShuflleMode(seed);
+ShuffleMode *createShuffleMode(unsigned long seed) {
+    ShuffleMode *shuflleMode = new ShuffleMode(seed);
     return shuflleMode;
 }
 
@@ -229,7 +269,8 @@ public:
         this->mode = mode;
     }
 
-    void play() {
+    void play() override {
+        Printer::printPlaylist("Playlist", name);
         std::cout << "Playlist [" << name << "]" << std::endl;
         mode->play(playlist);
     };
@@ -242,11 +283,11 @@ public:
 
         std::string type = file.getValue("type");
         if (type == "audio") {
-            Song *song = new Song(file.getFile());
+            Song *song = new Song(&file);
             return song;
         }
         else if (type == "video") {
-            Movie *movie = new Movie(file.getFile());
+            Movie *movie = new Movie(&file);
             return movie;
         }
         else {
