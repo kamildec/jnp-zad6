@@ -109,12 +109,25 @@ private:
     std::string title;
     std::string year;
 
+    std::string ROT13(std::string str) {
+        std::string result;
+
+        for (auto it = str.begin(); it != str.end(); ++it)
+            if (('A' <= *it && *it <= 'M') || ('a' <= *it && *it <= 'm'))
+                result.append(1, *it + 13);
+            else if (('N' <= *it && *it <= 'Z') || ('n' <= *it && *it <= 'z'))
+                result.append(1, *it - 13);
+            else result.append(1, *it);
+
+        return result;
+    }
+
 public:
     Movie(const char *file) : File(file) {}
 
     void play() override {
         std::cout << "Movie" << " [" << getValue("title") << ", " <<
-                  getValue("year") << "]: " << getValue("content") << std::endl;
+                  getValue("year") << "]: " << ROT13(getValue("content")) << std::endl;
     }
 };
 
