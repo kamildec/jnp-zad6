@@ -230,6 +230,7 @@ public:
     }
 
     void play() {
+        std::cout << "Playlist [" << name << "]" << std::endl;
         mode->play(playlist);
     };
 };
