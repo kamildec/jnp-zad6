@@ -41,19 +41,19 @@ int main() {
     mishmash->play();
 
     try {
-        auto unsupported = player.openFile(File("mp3|artist:Unsupported|title:Unsupported|Content"));
+        player.openFile(File("mp3|artist:Unsupported|title:Unsupported|Content"));
     } catch (PlayerException const& e) {
         std::cout << e.what() << std::endl;
     }
 
     try {
-        auto corrupted = player.openFile(File("Corrupt"));
+        player.openFile(File("Corrupt"));
     } catch (PlayerException const& e) {
         std::cout << e.what() << std::endl;
     }
 
     try {
-        auto corrupted = player.openFile(File("audio|artist:Louis Armstrong|title:Hello, Dolly!|%#!@*&"));
+        player.openFile(File("audio|artist:Louis Armstrong|title:Hello, Dolly!|%#!@*&"));
     } catch (PlayerException const& e) {
         std::cout << e.what() << std::endl;
     }

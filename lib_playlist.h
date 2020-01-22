@@ -14,6 +14,13 @@ using position_t = uint32_t;
 
 class PlayerException : public std::exception {};
 
+class OutOfRangePositionException : public PlayerException {
+public:
+    [[nodiscard]] const char *what() const noexcept override {
+        return "position is out of playlist's range";
+    }
+};
+
 class PlayableException : public PlayerException {
 public:
     [[nodiscard]] const char *what() const noexcept override {
@@ -50,9 +57,13 @@ class UnsupportedTypeException : public PlayerException {
 
 class File {
 private:
+    std::string type;
+    std::string content;
     std::unordered_map<std::string, std::string> metadata;
     const char* file;
 public:
+    // Wyodrębnia kolejne informacje z treści pliku.
+    // Rzuca wyjątki, gdy odkryje, że plik lub jego metadane są uszkodzone.
     explicit File(const char *file) {
         this->file = file;
 
@@ -62,7 +73,7 @@ public:
         if (pos == std::string::npos)
             throw CorruptFileException();
         toMap = str.substr(0, pos);
-        metadata.insert({"type", toMap});
+        this->type = toMap;
         str = str.substr(pos + 1, std::string::npos);
 
         pos = str.find(SEPARATOR);
@@ -86,10 +97,8 @@ public:
         if (!regex_match(str, content))
             throw CorruptContentException();
 
-        metadata.insert({"content", str});
+        this->content = str;
     }
-
-    //virtual ~File() = default;
 
     std::string getValue(const std::string &name) const {
         auto result = metadata.find(name);
@@ -99,24 +108,30 @@ public:
             return std::string();
     }
 
+    std::string getType() const {
+        return this->type;
+    }
+
+    std::string getContent() const {
+        return this->content;
+    }
+
     const char *getFile() {
         return file;
     }
 };
 
 class Printer {
-    const static int code = 13;
+    const static int CODE = 13;
 
     static std::string uncodingROT13 (std::string str) {
         std::string res;
         for (char & i : str) {
             if ((i >= 'a' && i <= 'm') || (i >= 'A' && i <='M'))
-                res.append(1,i += code);
+                res.append(1,i += CODE);
             else if ((i >= 'n' && i <= 'z') || (i >= 'N' && i <= 'Z'))
-                res.append(1, i -= code);
-            else if (isspace(i) || i == ',' || i == '.' || i == '!' || i == '?' || i == ':' ||
-                        i == ';' || i == '-')
-
+                res.append(1, i -= CODE);
+            else
                 res.append(1, i);
         }
 
@@ -153,7 +168,7 @@ private:
 public:
 
     explicit Song(File *file) try : artist(file->getValue("artist")), title(file->getValue("title")),
-                            content(file->getValue("content")) {}
+                            content(file->getContent()) {}
                             catch (std::exception &e) {throw PlayableException();}
 
     void play() override {
@@ -168,22 +183,9 @@ private:
     std::string year;
     std::string content;
 
-    std::string ROT13(std::string str) {
-        std::string result;
-
-        for (auto it = str.begin(); it != str.end(); ++it)
-            if (('A' <= *it && *it <= 'M') || ('a' <= *it && *it <= 'm'))
-                result.append(1, *it + 13);
-            else if (('N' <= *it && *it <= 'Z') || ('n' <= *it && *it <= 'z'))
-                result.append(1, *it - 13);
-            else result.append(1, *it);
-
-        return result;
-    }
-
 public:
     explicit Movie(File *file) try : title(file->getValue("title")), year(file->getValue("year")),
-                            content(file->getValue("content")) {}
+                            content(file->getContent()) {}
                             catch (std::exception &e) {throw PlayableException();}
 
     void play() override {
@@ -205,6 +207,7 @@ class ShuffleMode : public Mode {
 public:
     explicit ShuffleMode(unsigned long seed) : seed(seed), engine(seed) {}
 
+    // Tworzy pseudolosową permutację  - kolejność odtwarzania składanki.
     void play(std::deque<Playable*> deque) override {
         std::uniform_int_distribution<position_t> distr(0, deque.size());
         std::vector<position_t> seq(deque.size());
@@ -258,7 +261,6 @@ OddEvenMode *createOddEvenMode() {
     return oddEvenMode;
 }
 
-//TODO zagnieżdzanie playlist
 class Playlist : public Playable {
 private:
     std::string name;
@@ -266,15 +268,15 @@ private:
     Mode *mode;
 
 public:
-
     explicit Playlist(const char* name) : name(name), mode(createSequenceMode()) {}
 
     void add(Playable *playable) {
         playlist.push_back(playable);
     }
 
-    //TODO co jak pozycja wyjebana w kosmos?
     void add(Playable *file, position_t position) {
+        if (position > playlist.size())
+            throw OutOfRangePositionException();
         playlist.insert(playlist.begin() + position, file);
     }
 
@@ -283,6 +285,8 @@ public:
     }
 
     void remove(position_t position) {
+        if (position > playlist.size())
+            throw OutOfRangePositionException();
         playlist.erase(playlist.begin() + position);
     }
 
@@ -296,12 +300,11 @@ public:
     };
 };
 
-
 class Player {
 public:
     Playable *openFile(File file) {
 
-        std::string type = file.getValue("type");
+        std::string type = file.getType();
         if (type == "audio") {
             Song *song = new Song(&file);
             return song;
