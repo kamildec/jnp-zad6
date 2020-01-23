@@ -14,6 +14,13 @@ using position_t = uint32_t;
 
 class PlayerException : public std::exception {};
 
+class YearIsNotNumberException : public PlayerException {
+public:
+    [[nodiscard]] const char *what() const noexcept override {
+        return "year is not number";
+    }
+};
+
 class OutOfRangePositionException : public PlayerException {
 public:
     [[nodiscard]] const char *what() const noexcept override {
@@ -61,6 +68,15 @@ private:
     std::string content;
     std::unordered_map<std::string, std::string> metadata;
     const char* file;
+
+    bool isNumber(std::string str) {
+        for (auto i = str.begin(); i != str.end(); ++i)
+            if (!std::isdigit(*i))
+                return false;
+
+        return !str.empty();
+    }
+
 public:
     // Wyodrębnia kolejne informacje z treści pliku.
     // Rzuca wyjątki, gdy odkryje, że plik lub jego metadane są uszkodzone.
@@ -87,6 +103,8 @@ public:
 
             key = toMap.substr(0, pos);
             value = toMap.substr(pos + 1, std::string::npos);
+            if (key == "year" && !isNumber(value))
+                throw YearIsNotNumberException();
             metadata.insert({key, value});
 
             pos = str.find(SEPARATOR);
