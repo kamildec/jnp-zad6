@@ -116,9 +116,9 @@ public:
         return this->content;
     }
 
-    const char *getFile() {
+    /*const char *getFile() {
         return file;
-    }
+    }*/
 };
 
 class Printer {
@@ -196,20 +196,18 @@ public:
 
 class Mode {
 public:
-    virtual void play(std::deque<Playable*> deque) = 0;
+    virtual void play(const std::deque<std::shared_ptr<Playable>> &deque) = 0;
 };
 
 
 class ShuffleMode : public Mode {
-    std::default_random_engine engine;
-    unsigned long seed;
+    std::default_random_engine   engine;
 
 public:
-    explicit ShuffleMode(unsigned long seed) : seed(seed), engine(seed) {}
+    explicit ShuffleMode(unsigned long seed) : engine(seed) {}
 
     // Tworzy pseudolosową permutację  - kolejność odtwarzania składanki.
-    void play(std::deque<Playable*> deque) override {
-        std::uniform_int_distribution<position_t> distr(0, deque.size());
+    void play(const std::deque<std::shared_ptr<Playable>> &deque) override {
         std::vector<position_t> seq(deque.size());
         std::iota(seq.begin(), seq.end(), 0);
         std::shuffle(seq.begin(), seq.end(), engine);
@@ -222,8 +220,8 @@ public:
 
 class SequenceMode : public Mode {
 public:
-    void play(std::deque<Playable*> deque) override {
-        for (auto it : deque) {
+    void play(const std::deque<std::shared_ptr<Playable>> &deque) override {
+        for (const auto& it : deque) {
             it->play();
         }
     }
@@ -231,7 +229,7 @@ public:
 
 class OddEvenMode : public Mode {
 public:
-    void play(std::deque<Playable*> deque) override {
+    void play(const std::deque<std::shared_ptr<Playable>> &deque) override {
         size_t i = 1;
         while (i < deque.size()) {
             deque[i]->play();
@@ -246,35 +244,32 @@ public:
 };
 
 
-SequenceMode *createSequenceMode() {
-    SequenceMode *sequenceMode = new SequenceMode();
-    return sequenceMode;
+std::shared_ptr<SequenceMode> createSequenceMode() {
+    return std::make_shared<SequenceMode>();
 }
 
-ShuffleMode *createShuffleMode(unsigned long seed) {
-    ShuffleMode *shuflleMode = new ShuffleMode(seed);
-    return shuflleMode;
+std::shared_ptr<ShuffleMode> createShuffleMode(unsigned long seed) {
+    return std::make_shared<ShuffleMode>(seed);
 }
 
-OddEvenMode *createOddEvenMode() {
-    OddEvenMode *oddEvenMode = new OddEvenMode();
-    return oddEvenMode;
+std::shared_ptr<OddEvenMode> createOddEvenMode() {
+    return std::make_shared<OddEvenMode>();
 }
 
 class Playlist : public Playable {
 private:
     std::string name;
-    std::deque<Playable*> playlist;
-    Mode *mode;
+    std::deque<std::shared_ptr<Playable>> playlist;
+    std::shared_ptr<Mode> mode;
 
 public:
     explicit Playlist(const char* name) : name(name), mode(createSequenceMode()) {}
 
-    void add(Playable *playable) {
+    void add(const std::shared_ptr<Playable> &playable) {
         playlist.push_back(playable);
     }
 
-    void add(Playable *file, position_t position) {
+    void add(const std::shared_ptr<Playable> &file, position_t position) {
         if (position > playlist.size())
             throw OutOfRangePositionException();
         playlist.insert(playlist.begin() + position, file);
@@ -285,13 +280,13 @@ public:
     }
 
     void remove(position_t position) {
-        if (position > playlist.size())
+        if (playlist.empty() || position > playlist.size() - 1)
             throw OutOfRangePositionException();
         playlist.erase(playlist.begin() + position);
     }
 
-    void setMode(Mode *mode) {
-        this->mode = mode;
+    void setMode(const std::shared_ptr<Mode> &play_mode) {
+        this->mode = play_mode;
     }
 
     void play() override {
@@ -302,15 +297,15 @@ public:
 
 class Player {
 public:
-    Playable *openFile(File file) {
+    static std::shared_ptr<Playable> openFile(File file) {
 
         std::string type = file.getType();
         if (type == "audio") {
-            Song *song = new Song(&file);
+            std::shared_ptr<Song> song = std::make_shared<Song>(&file);
             return song;
         }
         else if (type == "video") {
-            Movie *movie = new Movie(&file);
+            std::shared_ptr<Movie> movie = std::make_shared<Movie>(&file);
             return movie;
         }
         else {
@@ -318,8 +313,8 @@ public:
         }
     }
 
-    Playlist *createPlaylist(const char *name) {
-        Playlist *playlist = new Playlist(name);
+    static std::shared_ptr<Playlist> createPlaylist(const char *name) {
+        std::shared_ptr<Playlist> playlist = std::make_shared<Playlist>(name);
         return playlist;
     }
 };
