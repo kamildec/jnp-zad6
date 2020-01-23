@@ -1,6 +1,7 @@
 #ifndef PLAYLIST_PLAYER_EXCEPTION_H
 #define PLAYLIST_PLAYER_EXCEPTION_H
 
+//Plik zawierający wyjątki, których korzeniem jest PlayerException.
 class PlayerException : public std::exception {};
 
 class OutOfRangePositionException : public PlayerException {

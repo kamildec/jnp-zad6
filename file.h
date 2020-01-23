@@ -45,13 +45,13 @@ public:
             value = toMap.substr(pos + 1, std::string::npos);
             if (key == "year" && !isNumber(value))
                 throw YearIsNotNumberException();
-            
+
             metadata.insert({key, value});
 
             pos = str.find(SEPARATOR);
         }
 
-        static const std::regex content("(\\d|\\s|[A-Za-z]|\\.|\\,|!|\\?|'|:|;|-)+");
+        static const std::regex content("(\\d|\\s|[A-Za-z]|\\.|\\,|!|\\?|'|:|;|-)*");
 
         if (!regex_match(str, content))
             throw CorruptContentException();
@@ -59,12 +59,13 @@ public:
         this->content = str;
     }
 
+    //Zwraca wartość wskazanej metadanej.
     std::string getValue(const std::string &name) const {
         auto result = metadata.find(name);
         if (result != metadata.end())
             return result->second;
         else
-            return std::string();
+            throw PlayableException();
     }
 
     std::string getType() const {

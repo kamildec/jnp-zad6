@@ -12,7 +12,7 @@
 #include "playable.h"
 #include "mode.h"
 
-
+//Funkcje tworzące kolejne tryby odtwarzania.
 std::shared_ptr<SequenceMode> createSequenceMode();
 
 std::shared_ptr<ShuffleMode> createShuffleMode(unsigned long seed);
@@ -27,6 +27,7 @@ private:
     unsigned int id;
 
 public:
+    //Ostatnie nadane id.
     static unsigned int lastId;
 
     explicit Playlist(const char* name) : name(name), mode(createSequenceMode()), id(lastId++) {}
@@ -38,10 +39,13 @@ public:
             throw CycleException();
     }
 
-    void add(const std::shared_ptr<Playable> &file, position_t position) {
+    void add(const std::shared_ptr<Playable> &playable, position_t position) {
         if (position > playlist.size())
             throw OutOfRangePositionException();
-        playlist.insert(playlist.begin() + position, file);
+        if (playable->canBeAdded(id))
+            playlist.insert(playlist.begin() + position, playable);
+        else
+            throw CycleException();
     }
 
     void remove() {
@@ -63,6 +67,7 @@ public:
         mode->play(playlist);
     };
 
+    //Sprawdza DFS-em, czy dodanie playlisty nie spowoduje powstania cyklu.
     bool canBeAdded(unsigned int id) override {
         if (id == this->id)
             return false;

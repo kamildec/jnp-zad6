@@ -1,7 +1,9 @@
 #include "lib_playlist.h"
 
+//Ustawia statyczny licznik playlist.
 unsigned int Playlist::lastId = 0;
 
+//Funkcje tworzące kolejne tryby odtwarzania.
 std::shared_ptr<SequenceMode> createSequenceMode() {
     return std::make_shared<SequenceMode>();
 }

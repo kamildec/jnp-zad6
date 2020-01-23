@@ -4,6 +4,7 @@
 
 class Playable {
 public:
+    //Abstrakcyjna funkcja sprawdzająca czy dodanie do Playlisty jest możliwe (cykle).
     virtual bool canBeAdded(unsigned int id) {
         (void)id;
         return true;
@@ -11,6 +12,8 @@ public:
     virtual void play() = 0;
 };
 
+//Klasa obsługująca odtwarzanie.
+//W naszym przypadku wypisująca wskazane metadane utworów na standardowe wyjście.
 class ManagePlay {
     const static int CODE = 13;
 
@@ -51,9 +54,8 @@ private:
     std::string content;
 public:
 
-    explicit Song(File *file) try : artist(file->getValue("artist")), title(file->getValue("title")),
+    explicit Song(File *file) : artist(file->getValue("artist")), title(file->getValue("title")),
                                     content(file->getContent()) {}
-    catch (std::exception &e) {throw PlayableException();}
 
     void play() override {
         ManagePlay::printSong("Song", " [" + artist + ", " +
@@ -68,9 +70,8 @@ private:
     std::string content;
 
 public:
-    explicit Movie(File *file) try : title(file->getValue("title")), year(file->getValue("year")),
+    explicit Movie(File *file) : title(file->getValue("title")), year(file->getValue("year")),
                                      content(file->getContent()) {}
-    catch (std::exception &e) {throw PlayableException();}
 
     void play() override {
         ManagePlay::printMovie("Movie", " [" + title + ", " +

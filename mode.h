@@ -52,5 +52,4 @@ public:
     }
 };
 
-
 #endif //PLAYLIST_MODE_H
